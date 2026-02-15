@@ -16,7 +16,7 @@ app.add_middleware(
 )
 
 # Configuration
-YOUTUBE_API_KEY = "AIzaSyD8yVCj8qoB_VFtRuzL6ICP4UXgGzlJrJc"
+YOUTUBE_API_KEY = "YOUR_API_KEY"
 MONGO_URL = "mongodb://localhost:27017"
 IST = timezone(timedelta(hours=5, minutes=30)) # Offset for India Standard Time
 
