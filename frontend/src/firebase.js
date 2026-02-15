@@ -4,13 +4,13 @@ import { getFirestore } from "firebase/firestore";
 
 // Your verified web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAkIjofK6W9gr-CpuKfXftiLp_5abzYZPs",
-  authDomain: "social-tracker-d3355.firebaseapp.com",
-  projectId: "social-tracker-d3355",
-  storageBucket: "social-tracker-d3355.firebasestorage.app",
-  messagingSenderId: "493004497723",
-  appId: "1:493004497723:web:476389a473e5046afd0d1e",
-  measurementId: "G-Z4ZN1KBYJ1"
+  apiKey: "YOUR_FIREBASE_API_KEY", 
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.firebasestorage.app",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID",
+  measurementId: "YOUR_MEASUREMENT_ID"
 };
 
 // Initialize Firebase services
