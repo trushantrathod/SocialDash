@@ -36,15 +36,6 @@ live sessions.
 -   "Delta-Check" logic to prevent unnecessary MongoDB writes\
 -   Page Visibility API to pause tracking when the tab is inactive\
 -   Designed for efficient long-running sessions
-
-### 📊 Professional Data Export
-
-One-click CSV download of full subscriber history stored in MongoDB.
-
-### 🕒 IST Localization
-
-Fully synchronized to Indian Standard Time (UTC+5:30).
-
 ------------------------------------------------------------------------
 
 ## 🛠️ Tech Stack
