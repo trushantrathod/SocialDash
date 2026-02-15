@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Firebase & IDE
+.firebase/
+.vscode/
+.idea/
+.DS_Store
+
+# Python Environment & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+.venv
+
+# Local Databases
+storage/
+*.db
+*.sqlite
