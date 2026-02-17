@@ -1,6 +1,6 @@
 # SocialDash 🚀
 
-## A Professional Real-Time YouTube Analytics Studio
+## A Professional Real-Time Social Media Analytics Studio
 
 SocialDash is a high-performance analytics dashboard built for YouTube
 creators who want deeper insights into their growth.
