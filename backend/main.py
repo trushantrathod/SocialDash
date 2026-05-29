@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from googleapiclient.discovery import build
@@ -13,6 +15,9 @@ import re
 import uvicorn
 import math
 
+# Load environment variables from the .env file
+load_dotenv()
+
 app = FastAPI()
 
 app.add_middleware(
@@ -22,18 +27,15 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# REPLACE WITH YOUR ACTUAL API KEY
-YOUTUBE_API_KEY = "AIzaSyBtYDqi9cFHx8YsCR1BAsFCt44zGfgjre0" 
+# Fetch the API key from the environment variables
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+
+if not YOUTUBE_API_KEY:
+    raise ValueError("YOUTUBE_API_KEY is not set in the .env file")
+
 IST = timezone(timedelta(hours=5, minutes=30))
 
-try:
-    if not firebase_admin._apps:
-        cred = credentials.Certificate("serviceAccountKey.json")
-        firebase_admin.initialize_app(cred)
-    db = firestore.client()
-    print("✅ Firebase & ML Engine Online!")
-except Exception as e:
-    print(f"❌ FIREBASE ERROR: {e}")
+# ... rest of your code remains exactly the same ...
 
 youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
 
