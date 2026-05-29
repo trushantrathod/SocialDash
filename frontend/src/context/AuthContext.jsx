@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  onAuthStateChanged, 
-  signInAnonymously, 
-  signOut, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword 
+import {
+  onAuthStateChanged,
+  signOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail
 } from 'firebase/auth';
-import { auth } from '../firebase'; // Correctly importing your initialized auth
+
+import { auth } from '../firebase';
 
 const AuthContext = createContext();
 
@@ -15,19 +16,36 @@ export function AuthContextProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Standard Firebase Auth listener
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
     });
+
     return () => unsubscribe();
   }, []);
 
+  const signup = (email, password) => {
+    return createUserWithEmailAndPassword(auth, email, password);
+  };
+
+  const login = (email, password) => {
+    return signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const logout = () => {
+    return signOut(auth);
+  };
+
+  const resetPassword = (email) => {
+    return sendPasswordResetEmail(auth, email);
+  };
+
   const value = {
     user,
-    signup: (email, password) => createUserWithEmailAndPassword(auth, email, password),
-    login: (email, password) => signInWithEmailAndPassword(auth, email, password),
-    logout: () => signOut(auth)
+    signup,
+    login,
+    logout,
+    resetPassword
   };
 
   return (
@@ -37,4 +55,6 @@ export function AuthContextProvider({ children }) {
   );
 }
 
-export const useUserAuth = () => useContext(AuthContext);
+export const useUserAuth = () => {
+  return useContext(AuthContext);
+};
