@@ -1,5 +1,5 @@
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from googleapiclient.discovery import build
@@ -15,8 +15,8 @@ import re
 import uvicorn
 import math
 
-# Load environment variables from the .env file
-load_dotenv()
+# Automatically look for the .env file in parent directories
+load_dotenv(find_dotenv())
 
 app = FastAPI()
 
@@ -35,7 +35,19 @@ if not YOUTUBE_API_KEY:
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
-# ... rest of your code remains exactly the same ...
+# --- FIREBASE ADMIN INITIALIZATION ---
+try:
+    # Ensure you have downloaded this JSON file and placed it in the same folder as main.py
+    cred = credentials.Certificate("serviceAccountKey.json")
+    
+    # Check if app is already initialized to prevent errors on hot-reloads
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app(cred)
+        
+    db = firestore.client()
+except Exception as e:
+    print(f"Error initializing Firebase Admin: {e}")
+    db = None
 
 youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
 
@@ -108,6 +120,9 @@ def perform_dbscan_clustering(comments):
 # --- API ENDPOINTS ---
 @app.get("/api/youtube/{channel_id}")
 async def get_core_stats(channel_id: str):
+    if not db:
+        return {"error": "Database not initialized. Check serviceAccountKey.json."}
+        
     try:
         req = youtube.channels().list(part="statistics,snippet,contentDetails", id=channel_id)
         res = req.execute()
@@ -145,6 +160,7 @@ async def get_core_stats(channel_id: str):
 
 @app.get("/api/history/{channel_id}")
 async def get_history(channel_id: str):
+    if not db: return []
     try:
         history_ref = db.collection('youtube_stats').document(channel_id).collection('history')
         docs = history_ref.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(15).stream()

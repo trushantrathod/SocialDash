@@ -1,676 +1,1511 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from './firebase'; 
-import { useUserAuth } from './context/AuthContext';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Line, Doughnut, Bar, Radar } from 'react-chartjs-2';
 import 'chart.js/auto';
 import toast, { Toaster } from 'react-hot-toast';
+import { db } from './firebase';
+import { useUserAuth } from './context/AuthContext';
 import './App.css';
 
-// ─── ICONS ──────────────────────────────────────────────────────────────────
-const I = {
-  Youtube: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>,
-  Facebook: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" color="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
-  Instagram: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>,
-  Grid: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>,
-  Brain: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>,
-  Dollar: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
-  Zap: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
-  Settings: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-  LogOut: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
-  TrendUp: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
-  Eye: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
-  Users: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-  Video: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>,
-  Star: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
-  Globe: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
-  ChevronRight: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>,
-  Switch: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+/* -------------------------------------------------------------------------- */
+/*                               ICON LIBRARY                                 */
+/* -------------------------------------------------------------------------- */
+
+const Icon = {
+  Play: ({ size = 20 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M8 5.14v13.72a1 1 0 0 0 1.54.84l10.06-6.86a1 1 0 0 0 0-1.68L9.54 4.3A1 1 0 0 0 8 5.14Z" />
+    </svg>
+  ),
+  ArrowRight: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14" /><path d="m13 6 6 6-6 6" />
+    </svg>
+  ),
+  ArrowUpRight: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 17 17 7" /><path d="M7 7h10v10" />
+    </svg>
+  ),
+  Menu: ({ size = 22 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M4 6h16" /><path d="M4 12h16" /><path d="M4 18h16" />
+    </svg>
+  ),
+  X: ({ size = 22 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="m6 6 12 12" /><path d="m18 6-12 12" />
+    </svg>
+  ),
+  Youtube: ({ size = 22, fill = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={fill}>
+      <path d="M23.5 6.19a3.01 3.01 0 0 0-2.12-2.13C19.51 3.56 12 3.56 12 3.56s-7.51 0-9.38.5A3.01 3.01 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.01 3.01 0 0 0 2.12 2.13c1.87.5 9.38.5 9.38.5s7.51 0 9.38-.5a3.01 3.01 0 0 0 2.12-2.13C24 15.93 24 12 24 12s0-3.93-.5-5.81Z" />
+      <path d="m9.55 15.57 6.27-3.57-6.27-3.57v7.14Z" fill="#fff" />
+    </svg>
+  ),
+  Instagram: ({ size = 22 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="2.5" y="2.5" width="19" height="19" rx="5" />
+      <circle cx="12" cy="12" r="4.3" />
+      <circle cx="17.3" cy="6.8" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  Facebook: ({ size = 22 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07c0 6.02 4.39 11 10.13 11.93v-8.44H7.08v-3.49h3.05V9.72c0-3.03 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.96h-1.51c-1.49 0-1.96.93-1.96 1.88v2.27h3.34l-.53 3.49h-2.81V24C19.61 23.07 24 18.09 24 12.07Z" />
+    </svg>
+  ),
+  Grid: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+      <rect x="3" y="3" width="7" height="7" rx="1.4" /><rect x="14" y="3" width="7" height="7" rx="1.4" /><rect x="3" y="14" width="7" height="7" rx="1.4" /><rect x="14" y="14" width="7" height="7" rx="1.4" />
+    </svg>
+  ),
+  Brain: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+      <path d="M9.5 3A2.5 2.5 0 0 0 7 5.5v.4A3.2 3.2 0 0 0 4.2 9a3 3 0 0 0 1.1 5.75A3 3 0 0 0 8.6 19a2.4 2.4 0 0 0 2.4 2V6a3 3 0 0 0-1.5-3Z" />
+      <path d="M14.5 3A2.5 2.5 0 0 1 17 5.5v.4A3.2 3.2 0 0 1 19.8 9a3 3 0 0 1-1.1 5.75A3 3 0 0 1 15.4 19a2.4 2.4 0 0 1-2.4 2V6a3 3 0 0 1 1.5-3Z" />
+      <path d="M8.2 9.3h2.4M13.4 9.3h2.4M8.8 13.1h1.8M13.4 13.1h1.8" />
+    </svg>
+  ),
+  Dollar: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
+      <path d="M12 1v22" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  ),
+  Zap: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m13 2-9 12h7l-1 8 9-12h-7l1-8Z" />
+    </svg>
+  ),
+  Settings: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .32 1.81l.06.06-2.83 2.83-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.51 1.2V21h-4v-.09A1.65 1.65 0 0 0 8.5 19.4a1.65 1.65 0 0 0-1.81.32l-.06.06-2.83-2.83.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1H4a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.32-1.81l-.06-.06 2.83-2.83.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6A1.65 1.65 0 0 0 10.5 2.8V2h4v.8A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.81-.32l.06-.06 2.83 2.83-.06.06A1.65 1.65 0 0 0 19.4 9c.17.62.73 1 1.4 1h.2v4h-.2c-.67 0-1.23.38-1.4 1Z" />
+    </svg>
+  ),
+  LogOut: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  ),
+  Users: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 20v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  ),
+  Eye: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M1.5 12S5.5 4 12 4s10.5 8 10.5 8S18.5 20 12 20 1.5 12 1.5 12Z" /><circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
+  Video: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" />
+    </svg>
+  ),
+  Globe: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+      <circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z" />
+    </svg>
+  ),
+  Star: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.86L12 17.77l-6.18 3.23L7 14.14l-5-4.87 6.91-1.01L12 2Z" /></svg>
+  ),
+  ChevronRight: ({ size = 15 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="9 18 15 12 9 6" /></svg>
+  ),
+  Switch: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+    </svg>
+  ),
+  Lock: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    </svg>
+  ),
+  Check: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m5 12 4 4L19 6" />
+    </svg>
+  ),
+  EyeOn: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
+  EyeOff: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="m3 3 18 18" /><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" /><path d="M9.9 5.2A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-3.1 4.2" /><path d="M6.1 6.2C3.5 8.2 2 12 2 12s3.5 7 10 7c1.7 0 3.2-.4 4.5-1.1" />
+    </svg>
+  ),
+  Spark: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="m12 2 1.2 5.2L18 9l-4.8 1.8L12 16l-1.2-5.2L6 9l4.8-1.8L12 2Z" /><path d="m19 14 .7 2.3L22 17l-2.3.7L19 20l-.7-2.3L16 17l2.3-.7L19 14Z" />
+    </svg>
+  ),
 };
 
-// ─── UTILS & ANIMATED COMPONENTS ──────────────────────────────────────────────
-function AnimatedNumber({ value, prefix = '', suffix = '', duration = 1400 }) {
+/* -------------------------------------------------------------------------- */
+/*                              HELPER COMPONENTS                             */
+/* -------------------------------------------------------------------------- */
+
+function AnimatedNumber({ value = 0, prefix = '', suffix = '', duration = 1200 }) {
   const [display, setDisplay] = useState(0);
-  const startRef = useRef(null);
-  const frameRef = useRef(null);
 
   useEffect(() => {
+    const numericValue = Number(value) || 0;
+    let frame = 0;
     const start = performance.now();
-    const from = display;
-    const to = value || 0;
-    const step = (ts) => {
-      if (!startRef.current) startRef.current = ts;
-      const elapsed = ts - start;
-      const progress = Math.min(elapsed / duration, 1);
-      const ease = 1 - Math.pow(1 - progress, 4);
-      setDisplay(Math.round(from + (to - from) * ease));
-      if (progress < 1) frameRef.current = requestAnimationFrame(step);
+    const animate = (time) => {
+      const progress = Math.min((time - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 4);
+      setDisplay(Math.round(numericValue * eased));
+      if (progress < 1) frame = requestAnimationFrame(animate);
     };
-    frameRef.current = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frameRef.current);
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
   }, [value, duration]);
 
-  return <span>{prefix}{display.toLocaleString()}{suffix}</span>;
+  return <>{prefix}{display.toLocaleString()}{suffix}</>;
 }
 
-function ProgressBar({ value, max, color, label, sublabel }) {
-  const pct = Math.round((value / max) * 100) || 0;
-  const [animated, setAnimated] = useState(0);
-  useEffect(() => { const t = setTimeout(() => setAnimated(pct), 100); return () => clearTimeout(t); }, [pct]);
+function AppLogo({ compact = false }) {
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-dim)', fontWeight: 600 }}>{label}</span>
-        <span style={{ fontSize: '0.85rem', color: 'white', fontWeight: 700 }}>{sublabel}</span>
+    <div className={`app-logo ${compact ? 'compact' : ''}`}>
+      <div className="app-logo-mark" aria-hidden="true">
+        <svg
+          className="logo-orbit-svg"
+          width={compact ? 18 : 22}
+          height={compact ? 18 : 22}
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <circle className="logo-core" cx="12" cy="12" r="3.1" fill="currentColor" />
+          <ellipse className="logo-orbit logo-orbit-a" cx="12" cy="12" rx="8.7" ry="4.2" stroke="currentColor" strokeWidth="1.5" />
+          <ellipse className="logo-orbit logo-orbit-b" cx="12" cy="12" rx="8.7" ry="4.2" stroke="currentColor" strokeWidth="1.5" transform="rotate(60 12 12)" />
+          <circle className="logo-node node-a" cx="19.1" cy="10.3" r="1.35" fill="currentColor" />
+          <circle className="logo-node node-b" cx="7.1" cy="5.7" r="1.35" fill="currentColor" />
+          <circle className="logo-node node-c" cx="10.5" cy="18.8" r="1.35" fill="currentColor" />
+        </svg>
       </div>
-      <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${animated}%`, borderRadius: 99, background: `linear-gradient(90deg, ${color}, ${color}aa)`, transition: 'width 1s cubic-bezier(0.4,0,0.2,1)', boxShadow: `0 0 12px ${color}66` }}/>
+      <span>Social<span>Dash</span></span>
+    </div>
+  );
+}
+
+function BackgroundFX({ landing = false }) {
+  return (
+    <div className={`background-fx ${landing ? 'landing-fx' : ''}`} aria-hidden="true">
+      <div className="fx-orb fx-orb-a" />
+      <div className="fx-orb fx-orb-b" />
+      <div className="fx-orb fx-orb-c" />
+      <div className="fx-grid" />
+      <div className="fx-noise" />
+    </div>
+  );
+}
+
+function FeatureCard({ icon, eyebrow, title, text, index }) {
+  const visuals = [
+    <div className="feature-visual analytics-visual" aria-hidden="true">
+      <div className="feature-stat-row">
+        <div><small>Subscribers</small><strong>128.4K</strong><b>+3.2%</b></div>
+        <div><small>Views</small><strong>4.82M</strong><b>+8.7%</b></div>
+        <div><small>Reach</small><strong>6.12M</strong><b>+5.1%</b></div>
       </div>
+      <svg className="feature-sparkline" viewBox="0 0 680 130" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="featureLineFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#ff2d1b" stopOpacity=".28" />
+            <stop offset="1" stopColor="#ff2d1b" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d="M0 108 C65 100 80 88 130 92 S220 83 260 68 S338 74 385 55 S470 54 520 39 S615 31 680 12 V130 H0Z" fill="url(#featureLineFill)" />
+        <path d="M0 108 C65 100 80 88 130 92 S220 83 260 68 S338 74 385 55 S470 54 520 39 S615 31 680 12" fill="none" stroke="#ff2d1b" strokeWidth="3.2" strokeLinecap="round" />
+      </svg>
+    </div>,
+
+    <div className="feature-visual audience-visual" aria-hidden="true">
+      <div className="audience-bars">
+        <div><span>Creator tools</span><b>72%</b><i><em style={{ width: '72%' }} /></i></div>
+        <div><span>Editing workflow</span><b>58%</b><i><em style={{ width: '58%' }} /></i></div>
+        <div><span>New uploads</span><b>49%</b><i><em style={{ width: '49%' }} /></i></div>
+        <div><span>Gear & setup</span><b>35%</b><i><em style={{ width: '35%' }} /></i></div>
+      </div>
+    </div>,
+
+    <div className="feature-visual money-mini-visual" aria-hidden="true">
+      <small>ESTIMATED INTEGRATION</small>
+      <strong>$24,800</strong>
+      <span>based on historical viewership signals</span>
+      <div className="money-mini-bars">
+        <i style={{ height: '36%' }} /><i style={{ height: '55%' }} /><i style={{ height: '47%' }} /><i style={{ height: '70%' }} /><i style={{ height: '62%' }} /><i style={{ height: '87%' }} /><i style={{ height: '100%' }} />
+      </div>
+    </div>
+  ];
+
+  return (
+    <article className={`feature-card feature-card-${index + 1} reveal-card`} style={{ '--delay': `${index * 70}ms` }}>
+      <div className="feature-card-head">
+        <div className="feature-icon">{icon}</div>
+        <div className="feature-eyebrow">{eyebrow}</div>
+      </div>
+      <h3>{title}</h3>
+      <p>{text}</p>
+      {visuals[index] || null}
+      {index === 3 && (
+        <div className="command-tabs" aria-hidden="true">
+          <span>Overview</span>
+          <span>Audience AI</span>
+          <span>Monetization</span>
+        </div>
+      )}
+      <div className="feature-line" />
+    </article>
+  );
+}
+
+function MiniDashboardPreview() {
+  const bars = [52, 68, 44, 79, 62, 91, 73, 97, 84, 100];
+  return (
+    <div className="hero-dashboard-shell">
+      <div className="preview-glow" />
+      <div className="preview-window">
+        <div className="preview-topbar">
+          <div className="preview-brand">
+            <div className="tiny-dot red" />
+            <div className="tiny-dot amber" />
+            <div className="tiny-dot green" />
+            <span>Creator HQ</span>
+          </div>
+          <div className="preview-live"><span /> LIVE SYNC</div>
+        </div>
+
+        <div className="preview-body">
+          <div className="preview-sidebar">
+            <div className="preview-sidebar-logo"><Icon.Play size={11} /></div>
+            <div className="preview-side-line active" />
+            <div className="preview-side-line" />
+            <div className="preview-side-line" />
+            <div className="preview-side-line" />
+            <div className="preview-side-line short" />
+          </div>
+
+          <div className="preview-main">
+            <div className="preview-heading-row">
+              <div>
+                <div className="preview-kicker">YOUTUBE ANALYTICS</div>
+                <div className="preview-title">Creator Performance</div>
+              </div>
+              <div className="preview-sync">Updated just now</div>
+            </div>
+
+            <div className="preview-stats">
+              {[
+                ['Subscribers', '128,420', '+3.2%'],
+                ['Views', '4.82M', '+8.7%'],
+                ['Published', '214', '+1.4%'],
+                ['Reach', '6.12M', '+5.1%'],
+              ].map(([label, value, delta]) => (
+                <div className="preview-stat" key={label}>
+                  <div className="preview-stat-label">{label}</div>
+                  <div className="preview-stat-value">{value}</div>
+                  <div className="preview-stat-delta">{delta}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="preview-grid">
+              <div className="preview-panel preview-chart-panel">
+                <div className="preview-panel-header">
+                  <div>
+                    <strong>Live Velocity</strong>
+                    <small>Subscriber trajectory</small>
+                  </div>
+                  <span className="preview-chip">REAL-TIME</span>
+                </div>
+                <div className="preview-chart">
+                  <svg viewBox="0 0 700 220" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="previewFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stopColor="#ff2d1b" stopOpacity="0.34" />
+                        <stop offset="1" stopColor="#ff2d1b" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M0 196 C70 184 98 164 142 170 S220 152 268 142 S346 120 390 132 S462 92 505 102 S588 58 700 28 V220 H0Z" fill="url(#previewFill)" />
+                    <path d="M0 196 C70 184 98 164 142 170 S220 152 268 142 S346 120 390 132 S462 92 505 102 S588 58 700 28" fill="none" stroke="#ff2d1b" strokeWidth="4" strokeLinecap="round" />
+                  </svg>
+                  <div className="preview-chart-bars">
+                    {bars.map((height, i) => <span key={i} style={{ height: `${height}%` }} />)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="preview-panel">
+                <div className="preview-panel-header">
+                  <div>
+                    <strong>Audience AI</strong>
+                    <small>Comment intelligence</small>
+                  </div>
+                  <Icon.Brain size={15} />
+                </div>
+                <div className="ai-score">
+                  <div className="ai-score-ring"><span>82</span></div>
+                  <div>
+                    <div className="ai-score-title">Channel Health</div>
+                    <div className="ai-score-copy">High audience momentum</div>
+                  </div>
+                </div>
+                <div className="sentiment-mini">
+                  <div><span>Positive</span><b>71%</b></div>
+                  <div className="sentiment-track"><i style={{ width: '71%' }} /></div>
+                  <div><span>Neutral</span><b>20%</b></div>
+                  <div className="sentiment-track"><i style={{ width: '20%' }} /></div>
+                  <div><span>Negative</span><b>9%</b></div>
+                  <div className="sentiment-track"><i style={{ width: '9%' }} /></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LandingPage({ onLogin, onGetStarted }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const scrollTo = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setMobileOpen(false);
+  };
+
+  return (
+    <div className="public-page">
+      <BackgroundFX landing />
+
+      <header className="public-nav">
+        <div className="public-nav-inner">
+          <button className="nav-logo-button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <AppLogo />
+          </button>
+
+          <nav className={`public-links ${mobileOpen ? 'open' : ''}`}>
+            <button onClick={() => scrollTo('features')}>Features</button>
+            <button onClick={() => scrollTo('intelligence')}>Audience AI</button>
+            <button onClick={() => scrollTo('monetization')}>Monetization</button>
+            <button onClick={() => scrollTo('workflow')}>How it works</button>
+            <div className="mobile-nav-actions">
+              <button className="nav-login" onClick={onLogin}>Login</button>
+              <button className="nav-cta" onClick={onGetStarted}>Get Started <Icon.ArrowRight size={16} /></button>
+            </div>
+          </nav>
+
+          <div className="desktop-nav-actions">
+            <button className="nav-login" onClick={onLogin}>Login</button>
+            <button className="nav-cta" onClick={onGetStarted}>Get Started <Icon.ArrowRight size={16} /></button>
+          </div>
+
+          <button
+            className="mobile-menu"
+            onClick={() => setMobileOpen(v => !v)}
+            aria-label="Toggle menu"
+            type="button"
+          >
+            <span className="mobile-menu-icon">
+              {mobileOpen ? <Icon.X size={22} /> : <Icon.Menu size={22} />}
+            </span>
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <section className="hero-section">
+          <div className="hero-copy">
+            <div className="hero-badge">
+              <span className="badge-pulse" />
+              BUILT FOR THE NEXT GENERATION OF CREATORS
+            </div>
+
+            <h1>
+              Turn your content
+              <span> into a growth system.</span>
+            </h1>
+
+            <p className="hero-description">
+              SocialDash brings live social media analytics, audience intelligence,
+              content insights and monetization estimates into one beautifully
+              designed creator workspace.
+            </p>
+
+            <div className="hero-actions">
+              <button className="hero-primary" onClick={onGetStarted}>
+                Start building your advantage
+                <Icon.ArrowRight size={18} />
+              </button>
+              <button className="hero-secondary" onClick={() => scrollTo('features')}>
+                <span className="play-circle"><Icon.Play size={12} /></span>
+                Explore the platform
+              </button>
+            </div>
+
+            <div className="hero-proof-row">
+              <div className="proof-item"><span className="proof-check"><Icon.Check size={12} /></span>Live API analytics</div>
+              <div className="proof-item"><span className="proof-check"><Icon.Check size={12} /></span>Audience AI</div>
+              <div className="proof-item"><span className="proof-check"><Icon.Check size={12} /></span>Monetization</div>
+            </div>
+          </div>
+
+          <div className="hero-visual">
+            <div className="floating-metric floating-left">
+              <span className="metric-orb"><Icon.Users size={15} /></span>
+              <div><small>Subscribers</small><strong>128.4K</strong><b>+3.2%</b></div>
+            </div>
+
+            <div className="floating-metric floating-right">
+              <span className="metric-orb purple"><Icon.Brain size={15} /></span>
+              <div><small>Audience AI</small><strong>82 / 100</strong><b>Healthy</b></div>
+            </div>
+
+            <MiniDashboardPreview />
+          </div>
+        </section>
+
+        <section className="creator-strip">
+          <div className="creator-strip-inner">
+            <span>ONE WORKSPACE FOR</span>
+            <div><Icon.Youtube size={17} /> YouTube</div>
+            <div><Icon.Instagram size={17} /> Instagram</div>
+            <div><Icon.Facebook size={17} /> Meta</div>
+            <div className="strip-divider" />
+            <span>LIVE DATA • AI • MONETIZATION</span>
+          </div>
+        </section>
+
+        <section id="features" className="section-shell">
+          <div className="section-intro">
+            <div className="section-tag">WHAT'S INSIDE</div>
+            <h2>Everything you need to understand what is happening behind your content.</h2>
+            <p>
+              SocialDash is more than a dashboard. It connects performance data,
+              audience behavior and commercial insight into one continuous workflow.
+            </p>
+          </div>
+
+          <div className="feature-grid">
+            <FeatureCard
+              index={0}
+              icon={<Icon.Youtube size={20} />}
+              eyebrow="01 • LIVE ANALYTICS"
+              title="Live Creator Analytics"
+              text="Track subscribers, views, published assets and projected reach with live API synchronization and historical trajectory data."
+            />
+            <FeatureCard
+              index={1}
+              icon={<Icon.Brain size={20} />}
+              eyebrow="02 • AUDIENCE AI"
+              title="Audience AI"
+              text="Use DBSCAN topic clustering and VADER sentiment analysis to understand what your audience is actually saying."
+            />
+            <FeatureCard
+              index={2}
+              icon={<Icon.Dollar size={20} />}
+              eyebrow="03 • MONETIZATION"
+              title="Monetization Intelligence"
+              text="Estimate sponsorship value from viewership signals and explore story, dedicated and series deal scenarios."
+            />
+            <FeatureCard
+              index={3}
+              icon={<Icon.Zap size={20} />}
+              eyebrow="04 • CREATOR WORKSPACE"
+              title="Creator Command Center"
+              text="Switch between Overview, Audience AI and Monetization without losing context. Your connected workspace stays ready whenever you return."
+            />
+          </div>
+        </section>
+
+        <section id="intelligence" className="dark-section">
+          <div className="section-shell intelligence-layout">
+            <div className="intelligence-copy">
+              <div className="section-tag red">AUDIENCE AI</div>
+              <h2>Your comments are a source of strategy.</h2>
+              <p>
+                SocialDash turns audience conversations into a signal you can use.
+                Topic clusters surface recurring themes, while sentiment analysis
+                shows whether the audience reaction is moving in a healthy direction.
+              </p>
+
+              <div className="intelligence-bullets">
+                <div><span><Icon.Check size={13} /></span><strong>DBSCAN topic clustering</strong><small>Group similar comments into meaningful themes.</small></div>
+                <div><span><Icon.Check size={13} /></span><strong>VADER sentiment analysis</strong><small>See positive, neutral and negative reaction at a glance.</small></div>
+                <div><span><Icon.Check size={13} /></span><strong>Keyword discovery</strong><small>Spot the words and subjects repeatedly showing up.</small></div>
+              </div>
+            </div>
+
+            <div className="intelligence-visual glass-surface">
+              <div className="ai-window-head">
+                <div><span className="ai-status-dot" /> Audience intelligence</div>
+                <span className="ai-live-chip">LIVE MODEL</span>
+              </div>
+
+              <div className="ai-main-score">
+                <div className="ai-big-ring"><span>82</span><small>health</small></div>
+                <div>
+                  <small>Channel Health</small>
+                  <strong>Strong audience momentum</strong>
+                  <p>7 active conversation clusters detected</p>
+                </div>
+              </div>
+
+              <div className="ai-cluster-list">
+                {[
+                  ['Creator tools', 72, '#ff2d1b'],
+                  ['Editing workflow', 58, '#8b5cf6'],
+                  ['New uploads', 49, '#3b82f6'],
+                  ['Gear & setup', 35, '#10b981'],
+                ].map(([name, amount, color]) => (
+                  <div key={name} className="ai-cluster-row">
+                    <div><span className="cluster-bullet" style={{ background: color }} />{name}</div>
+                    <b>{amount}%</b>
+                    <span className="cluster-line"><i style={{ width: `${amount}%`, background: color }} /></span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="monetization" className="section-shell monetization-section">
+          <div className="monetization-card">
+            <div className="money-glow" />
+            <div className="money-copy">
+              <div className="section-tag green">MONETIZATION INTELLIGENCE</div>
+              <h2>Know what your audience could be worth.</h2>
+              <p>
+                SocialDash uses your channel's historical performance to create a
+                sponsorship benchmark for brand integrations, dedicated videos and
+                larger series opportunities.
+              </p>
+
+              <div className="money-checks">
+                <div><Icon.Check size={13} />Average views per video</div>
+                <div><Icon.Check size={13} />Industry CPM baseline</div>
+                <div><Icon.Check size={13} />Platform multiplier</div>
+              </div>
+            </div>
+
+            <div className="money-visual">
+              <div className="money-label">ESTIMATED BRAND DEAL VALUE</div>
+              <div className="money-value"><span>$</span>6,450</div>
+              <div className="money-sub">per sponsored integration</div>
+              <div className="money-tiers">
+                <div><small>Story mention</small><strong>$1,290</strong></div>
+                <div className="active"><small>Dedicated video</small><strong>$6,450</strong></div>
+                <div><small>Series deal</small><strong>$19,350</strong></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="workflow" className="section-shell workflow-section">
+          <div className="section-intro center">
+            <div className="section-tag">HOW IT WORKS</div>
+            <h2>From channel connection to creator decisions in minutes.</h2>
+          </div>
+
+          <div className="workflow-grid">
+            {[
+              ['01', 'Create your workspace', 'Login, initialize your creator space and keep your analytics isolated to your account.'],
+              ['02', 'Connect your source', 'Connect a YouTube channel ID and sync your latest channel performance.'],
+              ['03', 'Explore intelligence', 'Move from performance to audience AI and monetization without changing tools.'],
+              ['04', 'Act on the signal', 'Use the insights to guide content direction, audience understanding and commercial conversations.'],
+            ].map(([n, title, text]) => (
+              <div className="workflow-step" key={n}>
+                <div className="workflow-number">{n}</div>
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="final-cta-section">
+          <div className="final-cta-card">
+            <div className="cta-spark"><Icon.Spark size={21} /></div>
+            <div>
+              <div className="section-tag red">CREATOR HQ</div>
+              <h2>Stop guessing. Start creating with context.</h2>
+              <p>Your next growth decision should begin with the data already inside your content.</p>
+            </div>
+            <button onClick={onGetStarted}>Enter SocialDash <Icon.ArrowUpRight size={17} /></button>
+          </div>
+        </section>
+      </main>
+
+      <footer className="public-footer">
+        <div className="public-footer-inner">
+          <AppLogo compact />
+          <span>Creator intelligence, all in one place.</span>
+          <span>© {new Date().getFullYear()} SocialDash</span>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+
+function friendlyAuthError(error, mode = 'login') {
+  const code = error?.code || '';
+  const raw = String(error?.message || '').toLowerCase();
+
+  if (
+    code === 'auth/invalid-credential' ||
+    code === 'auth/wrong-password' ||
+    code === 'auth/user-not-found' ||
+    raw.includes('invalid-credential') ||
+    raw.includes('wrong-password') ||
+    raw.includes('user-not-found')
+  ) {
+    return 'Incorrect email or password. Please check your details and try again.';
+  }
+
+  if (code === 'auth/invalid-email') return 'Please enter a valid email address.';
+  if (code === 'auth/email-already-in-use') return 'An account with this email already exists. Try logging in instead.';
+  if (code === 'auth/weak-password') return 'Your password is too weak. Use at least 6 characters.';
+  if (code === 'auth/too-many-requests') return 'Too many attempts. Please wait a moment and try again.';
+  if (code === 'auth/network-request-failed') return 'Network error. Check your internet connection and try again.';
+
+  return mode === 'signup'
+    ? 'We could not create your account. Please try again.'
+    : 'We could not sign you in. Please check your details and try again.';
+}
+
+function AuthPage({ isRegistering, setIsRegistering, onSuccess }) {
+  const { login, signup, resetPassword } = useUserAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+
+  const submit = async (event) => {
+    event.preventDefault();
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
+      toast.error('Please enter your email and password.');
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) {
+      toast.error('Enter a valid email address.');
+      return;
+    }
+
+    try {
+      setBusy(true);
+      if (isRegistering) {
+        if (password.length < 6) {
+          toast.error('Password must contain at least 6 characters.');
+          return;
+        }
+        await signup(cleanEmail, password);
+        toast.success('Workspace created successfully.');
+      } else {
+        await login(cleanEmail, password);
+        toast.success('Welcome back.');
+      }
+      onSuccess?.();
+    } catch (error) {
+      toast.error(friendlyAuthError(error, isRegistering ? 'signup' : 'login'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendReset = async () => {
+    if (!email.trim()) {
+      toast.error('Enter your email address first.');
+      return;
+    }
+    try {
+      setBusy(true);
+      await resetPassword(email.trim());
+      toast.success('Password reset email sent.');
+      setForgotMode(false);
+    } catch (error) {
+      const message = error?.code === 'auth/user-not-found'
+        ? 'No account was found with this email address.'
+        : friendlyAuthError(error, 'login');
+      toast.error(message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="auth-page">
+      <BackgroundFX />
+      <div className="auth-shell">
+        <div className="auth-showcase">
+          <div className="auth-showcase-inner">
+            <button className="auth-logo-button" onClick={() => window.location.reload()}><AppLogo /></button>
+            <div className="auth-showcase-copy">
+              <div className="hero-badge"><span className="badge-pulse" /> PRIVATE CREATOR WORKSPACE</div>
+              <h1>Make every upload more intentional.</h1>
+              <p>
+                Your analytics, audience intelligence and monetization tools
+                stay together in one focused command center.
+              </p>
+              <div className="auth-benefits">
+                <div><span><Icon.Check size={13} /></span>Live creator analytics</div>
+                <div><span><Icon.Check size={13} /></span>NLP-powered audience insights</div>
+                <div><span><Icon.Check size={13} /></span>Data-backed sponsorship estimates</div>
+              </div>
+            </div>
+            <div className="auth-mini-card">
+              <div className="auth-mini-top"><span><Icon.Zap size={14} /> LIVE SIGNAL</span><b>+8.7%</b></div>
+              <div className="auth-mini-value">4.82M</div>
+              <div className="auth-mini-label">Global video views</div>
+              <div className="auth-mini-bars">
+                {[26, 41, 39, 57, 48, 71, 68, 88, 76, 96].map((h, i) => <i key={i} style={{ height: `${h}%` }} />)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="auth-panel-wrap">
+          <div className="auth-card">
+            <div className="auth-card-top">
+              <div className="auth-card-eyebrow">{forgotMode ? 'ACCOUNT RECOVERY' : isRegistering ? 'NEW WORKSPACE' : 'WELCOME BACK'}</div>
+              <div className="auth-secure"><Icon.Lock size={13} /> Secure access</div>
+            </div>
+
+            {!forgotMode ? (
+              <>
+                <h2>{isRegistering ? 'Create your creator workspace.' : 'Welcome back to SocialDash.'}</h2>
+                <p className="auth-card-copy">
+                  {isRegistering
+                    ? 'Start with your email and create a private command center for your content.'
+                    : 'Login to continue to your analytics and creator intelligence dashboard.'}
+                </p>
+
+                <form onSubmit={submit} className="auth-form">
+                  <label>
+                    <span>Email address</span>
+                    <input
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      type="email"
+                      autoComplete="email"
+                      placeholder="you@creator.com"
+                    />
+                  </label>
+
+                  <label>
+                    <span>Password</span>
+                    <div className="auth-password">
+                      <input
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete={isRegistering ? 'new-password' : 'current-password'}
+                        placeholder="Enter your password"
+                      />
+                      <button type="button" onClick={() => setShowPassword(v => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                        {showPassword ? <Icon.EyeOff /> : <Icon.EyeOn />}
+                      </button>
+                    </div>
+                  </label>
+
+                  {!isRegistering && (
+                    <div className="auth-row-end">
+                      <button type="button" className="auth-link" onClick={() => setForgotMode(true)}>Forgot password?</button>
+                    </div>
+                  )}
+
+                  <button className="auth-submit" type="submit" disabled={busy}>
+                    {busy ? <span className="button-spinner" /> : null}
+                    {busy ? 'Please wait…' : isRegistering ? 'Create Workspace' : 'Login to SocialDash'}
+                    {!busy && <Icon.ArrowRight size={17} />}
+                  </button>
+                </form>
+
+                <div className="auth-divider"><span>or</span></div>
+
+                <button className="auth-back-button" onClick={() => setIsRegistering(v => !v)}>
+                  {isRegistering ? 'Already have an account? ' : 'New to SocialDash? '}
+                  <strong>{isRegistering ? 'Login' : 'Create an account'}</strong>
+                </button>
+              </>
+            ) : (
+              <>
+                <h2>Reset your password.</h2>
+                <p className="auth-card-copy">Enter the email linked to your SocialDash account and we'll send you a reset link.</p>
+
+                <form onSubmit={(e) => { e.preventDefault(); sendReset(); }} className="auth-form">
+                  <label>
+                    <span>Email address</span>
+                    <input
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      type="email"
+                      autoComplete="email"
+                      placeholder="you@creator.com"
+                    />
+                  </label>
+
+                  <button className="auth-submit" type="submit" disabled={busy}>
+                    {busy ? <span className="button-spinner" /> : null}
+                    {busy ? 'Sending…' : 'Send Reset Link'}
+                    {!busy && <Icon.ArrowRight size={17} />}
+                  </button>
+                </form>
+
+                <button className="auth-back-button" onClick={() => setForgotMode(false)}>
+                  Back to <strong>Login</strong>
+                </button>
+              </>
+            )}
+
+            <div className="auth-footnote">
+              <span className="online-dot" />
+              SocialDash services available
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              DASHBOARD UTILS                               */
+/* -------------------------------------------------------------------------- */
+
+function ProgressBar({ value, max, color = '#ff2d1b', label, sublabel }) {
+  const pct = Math.max(0, Math.min(100, Math.round(((value || 0) / Math.max(max || 1, 1)) * 100)));
+  return (
+    <div className="progress-wrap">
+      <div className="progress-label"><span>{label}</span><b>{sublabel}</b></div>
+      <div className="progress-track"><div style={{ width: `${pct}%`, background: color }} /></div>
     </div>
   );
 }
 
 function StatCard({ icon, label, value, delta, deltaLabel, color, delay = 0 }) {
   return (
-    <div className="stat-card-new glass-card" style={{ animationDelay: `${delay}ms` }}>
-      <div className="stat-card-top">
-        <div className="stat-icon-wrap" style={{ background: `${color}18`, border: `1px solid ${color}30`, color }}>{icon}</div>
-        <div className="stat-delta-badge">
-          <I.TrendUp /> +{delta}%
-        </div>
+    <div className="dash-stat-card glass-card" style={{ '--delay': `${delay}ms` }}>
+      <div className="dash-stat-top">
+        <div className="dash-stat-icon" style={{ background: `${color}18`, color, borderColor: `${color}38` }}>{icon}</div>
+        <div className="dash-stat-delta"><span>↑</span> {delta}%</div>
       </div>
-      <div className="stat-value-block">
-        <div className="stat-num"><AnimatedNumber value={value} /></div>
-        <div className="stat-label">{label}</div>
-      </div>
-      <div className="stat-footer">
-        <span className="stat-sub">{deltaLabel}</span>
-      </div>
+      <div className="dash-stat-value"><AnimatedNumber value={value} /></div>
+      <div className="dash-stat-label">{label}</div>
+      <div className="dash-stat-footer">{deltaLabel}</div>
     </div>
   );
 }
 
-function NavItem({ icon, label, active, onClick }) {
+function NavItem({ icon, label, active, onClick, collapsed }) {
   return (
-    <button className={`nav-item-new ${active ? 'nav-active' : ''}`} onClick={onClick}>
-      <span className="nav-icon">{icon}</span>
-      <span className="nav-label-text">{label}</span>
-      {active && <span className="nav-indicator"/>}
+    <button className={`dash-nav-item ${active ? 'active' : ''}`} onClick={onClick} title={collapsed ? label : undefined}>
+      <span className="dash-nav-icon">{icon}</span>
+      {!collapsed && <span>{label}</span>}
+      {active && <span className="dash-nav-indicator" />}
     </button>
   );
 }
 
 const CHART_DEFAULTS = {
-  responsive: true, maintainAspectRatio: false,
-  plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(10,10,15,0.95)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: 12, titleColor: '#f4f4f5', bodyColor: '#a1a1aa', cornerRadius: 10 }},
-  scales: { x: { grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false }, ticks: { color: '#52525b', font: { size: 11 } } }, y: { grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false }, ticks: { color: '#52525b', font: { size: 11 } } } },
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: 'rgba(10,10,14,0.95)',
+      borderColor: 'rgba(255,255,255,0.1)',
+      borderWidth: 1,
+      padding: 10,
+      titleColor: '#f4f4f5',
+      bodyColor: '#a1a1aa',
+      cornerRadius: 10
+    }
+  },
+  scales: {
+    x: { grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false }, ticks: { color: '#52525b', font: { size: 10 } } },
+    y: { grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false }, ticks: { color: '#52525b', font: { size: 10 } } }
+  }
 };
 
 const TABS = [
-  { id: 'dashboard', label: 'Overview', icon: <I.Grid /> },
-  { id: 'nlp', label: 'Audience AI', icon: <I.Brain /> },
-  { id: 'revenue', label: 'Monetization', icon: <I.Dollar /> }
+  { id: 'dashboard', label: 'Overview', icon: <Icon.Grid /> },
+  { id: 'nlp', label: 'Audience AI', icon: <Icon.Brain /> },
+  { id: 'revenue', label: 'Monetization', icon: <Icon.Dollar /> }
 ];
 
-// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+/* -------------------------------------------------------------------------- */
+/*                                 APP ROOT                                   */
+/* -------------------------------------------------------------------------- */
+
 export default function App() {
   const { user, login, signup, logout, resetPassword } = useUserAuth();
   const API_URL = import.meta.env.VITE_API_URL;
-  
-  // Auth State
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+
+  const [showLanding, setShowLanding] = useState(true);
   const [isRegistering, setIsRegistering] = useState(false);
 
-  // App & Navigation State
-  const [workspace, setWorkspace] = useState(null); // null = Hub view, 'youtube' = Dashboard view
+  const [workspace, setWorkspace] = useState(null);
   const [tab, setTab] = useState('dashboard');
-  
-  // Loading & Data State
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadingMsg, setLoadingMsg] = useState("");
-  const [channelId, setChannelId] = useState("");
-  const [tempId, setTempId] = useState("");
-  
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState('');
+
+  const [channelId, setChannelId] = useState('');
+  const [tempId, setTempId] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const [stats, setStats] = useState(null);
   const [history, setHistory] = useState([]);
   const [nlp, setNlp] = useState(null);
+  const authWasReady = useRef(false);
 
-  // Authentication Handler
-  const handleAuth = async () => {
-    if (!email || !password) return toast.error("Enter all fields");
-    const authPromise = isRegistering ? signup(email, password) : login(email, password);
-    toast.promise(authPromise, { loading: 'Authenticating...', success: <b>Access Granted</b>, error: (e) => `${e.message}` });
-  };
-
-  const handleForgotPassword = async () => {
-  if (!email) {
-    toast.error("Please enter your email address first");
-    return;
-  }
-
-  try {
-    await resetPassword(email);
-    toast.success("Password reset email sent successfully!");
-  } catch (error) {
-    toast.error(error.message);
-  }
-};
-  
-
-
-  // State wipe & Profile Fetch when User logs in or out
   useEffect(() => {
     if (user) {
+      authWasReady.current = true;
+      setShowLanding(false);
       setIsLoading(true);
-      
-      // WIPE PREVIOUS STATE TO PREVENT LEAKS ACROSS ACCOUNTS
-      setWorkspace(null); 
-      setChannelId("");
-      setTempId("");
+      setWorkspace(null);
+      setChannelId('');
       setStats(null);
       setHistory([]);
       setNlp(null);
       setTab('dashboard');
 
-      // Check if this new user has an ID saved
-      getDoc(doc(db, 'users', user.uid, 'profile', 'youtube')).then(snap => {
-        if (snap.exists() && snap.data().accountId) {
-          const id = snap.data().accountId;
-          setChannelId(id);
-          setWorkspace('youtube'); // Auto-skip Hub since they already have an ID
-          fetchApiData(id);
-        } else {
-          // New User! Stop loading and show them the Hub to pick a card.
-          setIsLoading(false);
-        }
-      });
+      getDoc(doc(db, 'users', user.uid, 'profile', 'youtube'))
+        .then(async snap => {
+          if (snap.exists() && snap.data().accountId) {
+            const id = snap.data().accountId;
+            setChannelId(id);
+            setWorkspace('youtube');
+            await fetchApiData(id);
+          } else {
+            setIsLoading(false);
+          }
+        })
+        .catch(() => setIsLoading(false));
     } else {
-      // WIPE STATE ON LOGOUT
       setWorkspace(null);
-      setChannelId("");
+      setChannelId('');
       setStats(null);
       setHistory([]);
       setNlp(null);
       setIsLoading(false);
+      if (authWasReady.current) setShowLanding(false);
     }
   }, [user]);
 
-  // Workspace Selection (The Hub Logic)
-  const selectWorkspace = async (platform) => {
-    if (platform === 'facebook' || platform === 'instagram') {
-      toast("Meta integrations require a Pro License.", { icon: '🔒' });
+  const openAuth = (register = false) => {
+    setIsRegistering(register);
+    setShowLanding(false);
+  };
+
+  const returnToLanding = () => {
+    if (user) return;
+    setShowLanding(true);
+  };
+
+  const fetchApiData = async (id) => {
+    if (!id || !API_URL) {
+      setIsLoading(false);
       return;
     }
-    
-    if (platform === 'youtube') {
+
+    setIsLoading(true);
+
+    try {
+      setLoadingMsg('Fetching channel statistics…');
+      const res = await fetch(`${API_URL}/api/youtube/${id}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setStats(data);
+
+      setLoadingMsg('Fetching historical trajectory…');
+      const histRes = await fetch(`${API_URL}/api/history/${id}`);
+      const histData = await histRes.json();
+      setHistory(Array.isArray(histData) ? histData : []);
+
+      setLoadingMsg('Running audience intelligence…');
+      if (data.uploads_id) {
+        const nlpRes = await fetch(`${API_URL}/api/nlp/${data.uploads_id}`);
+        const nlpData = await nlpRes.json();
+        setNlp(nlpData?.error ? null : nlpData);
+      }
+    } catch (error) {
+      toast.error('API sync failed. Check your backend connection.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const selectWorkspace = async (platform) => {
+    if (platform !== 'youtube') {
+      toast('Meta integrations is Coming Soon.', { icon: '🔒' });
+      return;
+    }
+
+    try {
       setIsLoading(true);
-      setLoadingMsg("Checking Integration Status...");
-      
-      try {
-        const snap = await getDoc(doc(db, 'users', user.uid, 'profile', 'youtube'));
-        if (snap.exists() && snap.data().accountId) {
-          const id = snap.data().accountId;
-          setChannelId(id);
-          setWorkspace('youtube');
-          await fetchApiData(id);
-        } else {
-          // They clicked the Youtube card but have no ID. Ask for it!
-          setIsLoading(false);
-          setIsSettingsOpen(true); 
-        }
-      } catch (e) {
+      setLoadingMsg('Checking integration status…');
+      const snap = await getDoc(doc(db, 'users', user.uid, 'profile', 'youtube'));
+
+      if (snap.exists() && snap.data().accountId) {
+        const id = snap.data().accountId;
+        setChannelId(id);
+        setWorkspace('youtube');
+        await fetchApiData(id);
+      } else {
         setIsLoading(false);
         setIsSettingsOpen(true);
       }
+    } catch {
+      setIsLoading(false);
+      setIsSettingsOpen(true);
     }
   };
 
-  // Connect & Save New YouTube ID
   const connectChannel = async () => {
-    if (!tempId.trim()) return toast.error("Enter a valid ID");
-    setIsLoading(true);
-    await setDoc(doc(db, 'users', user.uid, 'profile', 'youtube'), { accountId: tempId });
-    setChannelId(tempId);
-    setIsSettingsOpen(false);
-    setWorkspace('youtube');
-    fetchApiData(tempId);
-  };
-
-  // Fetch Live Data
-  const fetchApiData = async (id) => {
-    setIsLoading(true);
-    try {
-      setLoadingMsg("Fetching Channel Statistics...");
-      const res = await fetch(`${API_URL}/api/youtube/${id}`);
-      const data = await res.json();
-      if(data.error) throw new Error(data.error);
-      setStats(data);
-
-      setLoadingMsg("Fetching Historical Trajectory...");
-      const histRes = await fetch(`${API_URL}/api/history/${id}`);
-      const histData = await histRes.json();
-      setHistory(histData || []);
-
-      setLoadingMsg("Executing ML Clustering...");
-      if(data.uploads_id) {
-         const nlpRes = await fetch(`${API_URL}/api/nlp/${data.uploads_id}`);
-         const nlpData = await nlpRes.json();
-         if(!nlpData.error) setNlp(nlpData);
-      }
-    } catch (e) {
-      toast.error("API Sync Failed. Check backend connection.");
+    const id = tempId.trim();
+    if (!id) {
+      toast.error('Enter a valid YouTube channel ID.');
+      return;
     }
-    setIsLoading(false);
+
+    try {
+      setIsLoading(true);
+      setLoadingMsg('Saving creator source…');
+      await setDoc(doc(db, 'users', user.uid, 'profile', 'youtube'), { accountId: id }, { merge: true });
+      setChannelId(id);
+      setIsSettingsOpen(false);
+      setWorkspace('youtube');
+      await fetchApiData(id);
+    } catch {
+      toast.error('Unable to save your YouTube channel.');
+      setIsLoading(false);
+    }
   };
 
-  // Memoized Chart Data
   const velocityChart = useMemo(() => ({
     labels: history.map(h => new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
     datasets: [{
-      label: 'Subscribers', data: history.map(h => h.subscribers),
-      borderColor: '#ff2200', fill: true, tension: 0.45, borderWidth: 2.5, pointRadius: 0,
-      backgroundColor: (ctx) => { const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300); g.addColorStop(0, 'rgba(255,34,0,0.25)'); g.addColorStop(1, 'rgba(255,34,0,0)'); return g; }
-    }],
+      label: 'Subscribers',
+      data: history.map(h => h.subscribers),
+      borderColor: '#ff2d1b',
+      fill: true,
+      tension: 0.42,
+      borderWidth: 2.4,
+      pointRadius: 0,
+      backgroundColor: (ctx) => {
+        const canvas = ctx.chart?.ctx;
+        if (!canvas) return 'rgba(255,45,27,0.18)';
+        const gradient = canvas.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, 'rgba(255,45,27,0.25)');
+        gradient.addColorStop(1, 'rgba(255,45,27,0)');
+        return gradient;
+      }
+    }]
   }), [history]);
 
   const weeklyBarChart = useMemo(() => {
-    const base = history.length > 0 ? history[history.length-1].subscribers : 1000;
-    const miniData = [base*0.1, base*0.12, base*0.11, base*0.15, base*0.14, base*0.18, base*0.2].map(v => Math.round(v));
+    const base = history.length ? Number(history[history.length - 1].subscribers || 1000) : 1000;
+    const values = [0.1, 0.12, 0.11, 0.15, 0.14, 0.18, 0.2].map(v => Math.max(1, Math.round(base * v)));
     return {
       labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      datasets: [{ label: 'New Subs', data: miniData, backgroundColor: miniData.map((_, i) => i === 6 ? '#ff0000' : 'rgba(255,255,255,0.07)'), borderColor: miniData.map((_, i) => i === 6 ? '#ff0000' : 'rgba(255,255,255,0.12)'), borderWidth: 1, borderRadius: 8 }]
+      datasets: [{
+        label: 'New subscribers',
+        data: values,
+        backgroundColor: values.map((_, i) => i === values.length - 1 ? '#ff2d1b' : 'rgba(255,255,255,0.08)'),
+        borderColor: values.map((_, i) => i === values.length - 1 ? '#ff2d1b' : 'rgba(255,255,255,0.12)'),
+        borderWidth: 1,
+        borderRadius: 8
+      }]
     };
   }, [history]);
 
   const sentimentChart = useMemo(() => {
-    if(!nlp) return null;
+    if (!nlp?.sentiment?.distribution) return null;
     return {
       labels: ['Positive', 'Neutral', 'Negative'],
-      datasets: [{ data: [nlp.sentiment.distribution.positive, nlp.sentiment.distribution.neutral, nlp.sentiment.distribution.negative], backgroundColor: ['rgba(16,185,129,0.85)', 'rgba(59,130,246,0.85)', 'rgba(239,68,68,0.85)'], borderWidth: 0, hoverOffset: 8 }]
+      datasets: [{
+        data: [
+          nlp.sentiment.distribution.positive,
+          nlp.sentiment.distribution.neutral,
+          nlp.sentiment.distribution.negative
+        ],
+        backgroundColor: ['rgba(16,185,129,0.85)', 'rgba(59,130,246,0.85)', 'rgba(239,68,68,0.85)'],
+        borderWidth: 0,
+        hoverOffset: 8
+      }]
     };
   }, [nlp]);
 
   const radarChart = useMemo(() => ({
     labels: ['Engagement', 'Retention', 'CTR', 'Sentiment', 'Growth', 'Reach'],
-    datasets: [{ label: 'Health', data: [82, 71, 65, (nlp?.sentiment?.distribution?.positive || 50) + 20, 88, 79], backgroundColor: 'rgba(255,0,0,0.1)', borderColor: '#ff0000', borderWidth: 2, pointBackgroundColor: '#ff0000', pointRadius: 4 }]
+    datasets: [{
+      label: 'Health',
+      data: [82, 71, 65, (nlp?.sentiment?.distribution?.positive || 50) + 20, 88, 79],
+      backgroundColor: 'rgba(255,45,27,0.08)',
+      borderColor: '#ff2d1b',
+      borderWidth: 2,
+      pointBackgroundColor: '#ff2d1b',
+      pointRadius: 3
+    }]
   }), [nlp]);
 
-// ─── VIEW 1: AUTHENTICATION ───
-if (!user) {
-  return (
-    <div className="app-shell layout-centered">
-      <Toaster position="top-center" />
+  /* Public entry point */
+  if (!user && showLanding) {
+    return (
+      <>
+        <LandingPage onLogin={() => openAuth(false)} onGetStarted={() => openAuth(true)} />
+        <Toaster position="top-center" />
+      </>
+    );
+  }
 
-      <div className="glass-card modal-panel" style={{ width: 420 }}>
-        <div
-          className="brand"
-          style={{ justifyContent: 'center', marginBottom: 40 }}
-        >
-          <div className="brand-icon">
-            <I.Youtube />
-          </div>
-          <span style={{ fontSize: '1.8rem', fontWeight: 800 }}>
-            Social<span style={{ color: '#ff0000' }}>Dash</span>
-          </span>
-        </div>
-
-        <h2
-          style={{
-            textAlign: 'center',
-            marginBottom: 25,
-            fontSize: '1.2rem',
-            color: 'white'
-          }}
-        >
-          {isRegistering ? 'Create Workspace' : 'Authenticate'}
-        </h2>
-
-        <input
-          className="modal-input"
-          placeholder="Work Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ marginBottom: 12 }}
+  /* Authentication */
+  if (!user && !showLanding) {
+    return (
+      <>
+        <AuthPage
+          isRegistering={isRegistering}
+          setIsRegistering={setIsRegistering}
+          onSuccess={() => setShowLanding(false)}
         />
-
-        <input
-          className="modal-input"
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{ marginBottom: 10 }}
-        />
-
-        {!isRegistering && (
-          <div
-            style={{
-              textAlign: 'right',
-              marginBottom: 20
-            }}
-          >
-            <button
-              onClick={handleForgotPassword}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#3b82f6',
-                cursor: 'pointer',
-                fontSize: '0.85rem',
-                fontWeight: 600
-              }}
-            >
-              Forgot Password?
-            </button>
-          </div>
-        )}
-
         <button
-          className="modal-btn-ok"
-          style={{
-            width: '100%',
-            marginBottom: 15,
-            padding: '14px'
-          }}
-          onClick={handleAuth}
+          className="auth-floating-back"
+          onClick={returnToLanding}
+          type="button"
+          aria-label="Back to website"
         >
-          {isRegistering ? 'Initialize Account' : 'Access Studio'}
+          <span className="auth-back-arrow">←</span>
+          <span>Back to website</span>
         </button>
+        <Toaster position="top-center" />
+      </>
+    );
+  }
 
-        <button
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-dim)',
-            width: '100%',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            cursor: 'pointer'
-          }}
-          onClick={() => setIsRegistering(!isRegistering)}
-        >
-          {isRegistering
-            ? 'Already have an account? Login'
-            : 'Need access? Sign Up'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-  // ─── VIEW 2: LOADING ───
+  /* Loading */
   if (isLoading) {
     return (
-      <div className="app-shell layout-centered">
-        <div className="loader-spinner"></div>
-        <p style={{ marginTop: 20, color: 'white', fontWeight: 600 }}>{loadingMsg}</p>
+      <div className="dashboard-loading fullscreen-loading">
+        <BackgroundFX />
+        <div className="loading-card glass-card">
+          <div className="loading-logo"><AppLogo /></div>
+          <div className="loading-spinner" />
+          <h2>{loadingMsg || 'Preparing your creator workspace…'}</h2>
+          <p>Syncing your latest SocialDash intelligence.</p>
+        </div>
+        <Toaster position="top-center" />
       </div>
     );
   }
 
-  // ─── VIEW 3: WORKSPACE HUB (SELECT PLATFORM) ───
-  if (workspace === null) {
+  /* Workspace hub */
+  if (!workspace) {
     return (
-      <div className="app-shell layout-centered">
-        <Toaster position="top-center"/>
-        <div className="content-wrapper" style={{ textAlign: 'center' }}>
-          <h1 className="title-grad" style={{ fontSize: '3rem', marginBottom: 10 }}>Select Workspace</h1>
-          <p className="text-dim" style={{ marginBottom: 40 }}>Initialize your tracking environments to begin generating insights.</p>
-          
-          <div className="hub-grid">
-            {/* YOUTUBE (ACTIVE) */}
-            <div className="hub-card" onClick={() => selectWorkspace('youtube')}>
-              <div style={{ color: '#ff0000', marginBottom: 15 }}><I.Youtube /></div>
-              <h3 style={{ color: 'white', fontSize: '1.2rem' }}>YouTube</h3>
-              <p className="text-dim" style={{ fontSize: '0.85rem', marginTop: 5 }}>Live API Sync</p>
-              <div className="hub-badge active">{channelId ? 'Online' : 'Connect Source'}</div>
-            </div>
-
-            {/* FACEBOOK (LOCKED) */}
-            <div className="hub-card locked" onClick={() => selectWorkspace('facebook')}>
-              <div style={{ color: '#1877F2', marginBottom: 15 }}><I.Facebook /></div>
-              <h3 style={{ color: 'white', fontSize: '1.2rem' }}>Meta Business</h3>
-              <p className="text-dim" style={{ fontSize: '0.85rem', marginTop: 5 }}>Pages & Ads</p>
-              <div className="hub-badge pro">Pro Required</div>
-            </div>
-
-            {/* INSTAGRAM (LOCKED) */}
-            <div className="hub-card locked" onClick={() => selectWorkspace('instagram')}>
-              <div style={{ color: '#E1306C', marginBottom: 15 }}><I.Instagram /></div>
-              <h3 style={{ color: 'white', fontSize: '1.2rem' }}>Instagram</h3>
-              <p className="text-dim" style={{ fontSize: '0.85rem', marginTop: 5 }}>Creator Accounts</p>
-              <div className="hub-badge pro">Pro Required</div>
-            </div>
-          </div>
-          
-          <button className="btn" style={{ marginTop: 60 }} onClick={logout}>Secure Logout</button>
+      <div className="workspace-page">
+        <BackgroundFX />
+        <div className="workspace-topbar">
+          <AppLogo />
+          <button className="dashboard-logout" onClick={logout}><Icon.LogOut size={15} /> Logout</button>
         </div>
 
-        {/* SETTINGS MODAL (Triggered if YouTube selected but no ID saved) */}
+        <div className="workspace-center">
+          <div className="workspace-kicker">CREATOR WORKSPACE</div>
+          <h1>Select a connected source.</h1>
+          <p>Start with YouTube today. Meta integrations remain locked behind Pro.</p>
+
+          <div className="workspace-grid">
+            <button className="workspace-card active" onClick={() => selectWorkspace('youtube')}>
+              <div className="workspace-card-icon youtube"><Icon.Youtube size={28} /></div>
+              <h3>YouTube</h3>
+              <p>Live API analytics, audience intelligence and monetization.</p>
+              <span className="workspace-pill active">Connect source</span>
+            </button>
+
+            <button className="workspace-card locked" onClick={() => selectWorkspace('facebook')}>
+              <div className="workspace-card-icon facebook"><Icon.Facebook size={28} /></div>
+              <h3>Meta Business</h3>
+              <p>Pages, ads and audience metrics.</p>
+              <span className="workspace-pill"><Icon.Lock size={12} /> Coming Soon</span>
+            </button>
+
+            <button className="workspace-card locked" onClick={() => selectWorkspace('instagram')}>
+              <div className="workspace-card-icon instagram"><Icon.Instagram size={28} /></div>
+              <h3>Instagram</h3>
+              <p>Creator account analytics and reach.</p>
+              <span className="workspace-pill"><Icon.Lock size={12} /> Coming Soon</span>
+            </button>
+          </div>
+        </div>
+
         {isSettingsOpen && (
           <div className="modal-veil" onClick={() => setIsSettingsOpen(false)}>
             <div className="modal-panel glass-card" onClick={e => e.stopPropagation()}>
-              <h2 style={{ color: 'white', marginBottom: 8 }}>Initialize YouTube</h2>
-              <p style={{ color: 'var(--text-dim)', marginBottom: 24, fontSize: '0.9rem' }}>Connect your YouTube channel ID to sync live API analytics securely.</p>
-              <input className="modal-input" placeholder="Channel ID (UC...)" value={tempId} onChange={(e) => setTempId(e.target.value)} />
-              <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-                <button className="modal-btn-cancel" onClick={() => setIsSettingsOpen(false)}>Cancel</button>
-                <button className="modal-btn-ok" onClick={connectChannel}>Connect Database</button>
+              <div className="modal-kicker">YOUTUBE CONNECTION</div>
+              <h2>Connect your channel.</h2>
+              <p>Paste the YouTube channel ID you want SocialDash to sync.</p>
+              <input className="modal-input" value={tempId} onChange={e => setTempId(e.target.value)} placeholder="UCxxxxxxxxxxxxxxxxxxxx" />
+              <div className="modal-actions">
+                <button className="modal-cancel" onClick={() => setIsSettingsOpen(false)}>Cancel</button>
+                <button className="modal-confirm" onClick={connectChannel}>Connect channel <Icon.ArrowRight size={15} /></button>
               </div>
             </div>
           </div>
         )}
+        <footer className="workspace-footer">
+          <div className="workspace-footer-inner">
+            <AppLogo compact />
+            <span>Creator intelligence, all in one place.</span>
+            <span>© {new Date().getFullYear()} SocialDash</span>
+          </div>
+        </footer>
+        <Toaster position="top-center" />
       </div>
     );
   }
 
-  // ─── VIEW 4: MAIN DASHBOARD ───
-  return (
-    <div className="app-shell">
-      <Toaster position="bottom-right"/>
+  /* Dashboard */
+  const milestone = Math.max(50000, Math.ceil((Number(stats?.subscribers || 0) + 1) / 50000) * 50000);
 
-      {/* SIDEBAR */}
-      <aside className={`sidebar-new ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        <div className="sidebar-header">
-          <div className="brand">
-            <div className="brand-icon"><I.Youtube /></div>
-            {!sidebarCollapsed && <span style={{color: 'white'}}>Social<span style={{color: '#ff0000'}}>Dash</span></span>}
-          </div>
-          <button className="collapse-btn" onClick={() => setSidebarCollapsed(v => !v)}>
-            {sidebarCollapsed ? <I.Grid /> : <I.ChevronRight />}
+  return (
+    <div className="dashboard-app">
+      <aside className={`dashboard-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-brand-row">
+          <AppLogo compact={sidebarCollapsed} />
+          <button
+            className="sidebar-collapse"
+            onClick={() => setSidebarCollapsed(v => !v)}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <Icon.ChevronRight size={15} />
           </button>
         </div>
 
         {!sidebarCollapsed && stats && (
-          <div className="sidebar-profile-card">
-            <div className="profile-avatar-wrap">
-              <img src={`https://api.dicebear.com/7.x/shapes/svg?seed=${stats.title}&backgroundColor=18181b`} alt="avatar" className="profile-avatar"/>
-              <span className="profile-live-dot"/>
-            </div>
+          <div className="connected-profile glass-card">
+            <img
+              src={`https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(stats.title || 'creator')}&backgroundColor=18181b`}
+              alt="Channel avatar"
+            />
             <div>
-              <div className="profile-name">{stats.title}</div>
-              <div className="profile-status"><span className="status-dot"/>&nbsp;Live Synced</div>
+              <strong>{stats.title}</strong>
+              <span><i /> Live synced</span>
             </div>
           </div>
         )}
 
-        <nav className="sidebar-nav-new">
-          {!sidebarCollapsed && <div className="nav-section-label">ANALYTICS</div>}
-          {TABS.map(t2 => (
-            <NavItem key={t2.id} icon={t2.icon} label={sidebarCollapsed ? '' : t2.label} active={tab === t2.id} onClick={() => setTab(t2.id)}/>
+        <div className="dashboard-nav-section">
+          {!sidebarCollapsed && <span>ANALYTICS</span>}
+          {TABS.map(item => (
+            <NavItem
+              key={item.id}
+              icon={item.icon}
+              label={item.label}
+              active={tab === item.id}
+              collapsed={sidebarCollapsed}
+              onClick={() => setTab(item.id)}
+            />
           ))}
-          
-          {!sidebarCollapsed && <div className="nav-section-label" style={{ marginTop: 24 }}>SYSTEM</div>}
-          
-          {/* SWITCH WORKSPACE BUTTON */}
-          <NavItem icon={<I.Switch />} label={sidebarCollapsed ? '' : 'Switch Workspace'} active={false} onClick={() => setWorkspace(null)} />
-          
-          <NavItem icon={<I.Settings />} label={sidebarCollapsed ? '' : 'Configuration'} active={false} onClick={() => setIsSettingsOpen(true)} />
-          <NavItem icon={<I.LogOut />} label={sidebarCollapsed ? '' : 'Disconnect'} active={false} onClick={logout} />
-        </nav>
+        </div>
+
+        <div className="dashboard-nav-section bottom">
+          {!sidebarCollapsed && <span>SYSTEM</span>}
+          <NavItem icon={<Icon.Switch />} label="Switch workspace" collapsed={sidebarCollapsed} onClick={() => setWorkspace(null)} />
+          <NavItem icon={<Icon.Settings />} label="Configuration" collapsed={sidebarCollapsed} onClick={() => setIsSettingsOpen(true)} />
+          <NavItem icon={<Icon.LogOut />} label="Disconnect" collapsed={sidebarCollapsed} onClick={logout} />
+        </div>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
-      <main className="main-new">
-        <header className="topbar">
-          <div className="topbar-left">
-            <div className="breadcrumb">
-              <span>Creator HQ</span> <I.ChevronRight /> <span className="bc-current">{TABS.find(t2 => t2.id === tab)?.label}</span>
-            </div>
-            <h1 className="page-title">{stats?.title}</h1>
+      <main className="dashboard-main">
+        <header className="dashboard-header">
+          <div className="dashboard-header-title">
+            <div className="dashboard-breadcrumb">CREATOR HQ <Icon.ChevronRight /> {TABS.find(item => item.id === tab)?.label}</div>
+            <h1>{stats?.title || 'Creator Workspace'}</h1>
           </div>
-          <div className="topbar-right">
-            <button className="sync-btn" onClick={() => fetchApiData(channelId)}><I.Zap /><span>Force Sync Data</span></button>
-          </div>
+          <button className="force-sync" onClick={() => fetchApiData(channelId)}><Icon.Zap size={15} /> Force sync</button>
         </header>
 
-        <div className="content-scroll">
-          
-          {/* DASHBOARD TAB */}
+        <div className="dashboard-content">
           {tab === 'dashboard' && stats && (
-            <div className="tab-content">
-              <div className="stats-grid">
-                <StatCard icon={<I.Users />} label="Total Subscribers" value={stats.subscribers} delta={3.2} deltaLabel="Live Updates" color="#ff0000" delay={0} />
-                <StatCard icon={<I.Eye />} label="Global Views" value={stats.views} delta={8.7} deltaLabel="Across entire channel" color="#3b82f6" delay={80} />
-                <StatCard icon={<I.Video />} label="Published Assets" value={stats.videos} delta={1.4} deltaLabel="API Validated" color="#8b5cf6" delay={160} />
-                <StatCard icon={<I.Globe />} label="True Omni Reach" value={stats.true_reach} delta={5.1} deltaLabel="Projected Audience" color="#10b981" delay={240} />
+            <div className="dashboard-tab">
+              <div className="dashboard-stats-grid">
+                <StatCard icon={<Icon.Users />} label="Total subscribers" value={stats.subscribers} delta="3.2" deltaLabel="Live updates" color="#ff2d1b" delay={0} />
+                <StatCard icon={<Icon.Eye />} label="Global views" value={stats.views} delta="8.7" deltaLabel="Across the channel" color="#3b82f6" delay={60} />
+                <StatCard icon={<Icon.Video />} label="Published assets" value={stats.videos} delta="1.4" deltaLabel="API validated" color="#8b5cf6" delay={120} />
+                <StatCard icon={<Icon.Globe />} label="True omni reach" value={stats.true_reach} delta="5.1" deltaLabel="Projected audience" color="#10b981" delay={180} />
               </div>
 
-              <div className="charts-row">
-                <div className="glass-card chart-card">
-                  <div className="chart-header">
-                    <div>
-                      <div className="chart-title">Live Velocity Stream</div>
-                      <div className="chart-sub">Real-time database listener</div>
-                    </div>
-                    <div className="chart-badge"><span className="pulse-dot"/>LIVE</div>
+              <div className="dashboard-chart-row">
+                <div className="dash-panel glass-card large">
+                  <div className="dash-panel-header">
+                    <div><strong>Live Velocity Stream</strong><span>Real-time subscriber trajectory</span></div>
+                    <div className="live-badge"><i /> LIVE</div>
                   </div>
-                  <div className="chart-area">
-                    <Line data={velocityChart} options={CHART_DEFAULTS} />
-                  </div>
+                  <div className="dash-chart"><Line data={velocityChart} options={CHART_DEFAULTS} /></div>
                 </div>
-                <div className="glass-card chart-card">
-                  <div className="chart-header"><div><div className="chart-title">Weekly Acquisition</div></div></div>
-                  <div className="chart-area"><Bar data={weeklyBarChart} options={CHART_DEFAULTS} /></div>
+
+                <div className="dash-panel glass-card">
+                  <div className="dash-panel-header"><div><strong>Weekly Acquisition</strong><span>New subscribers trend</span></div></div>
+                  <div className="dash-chart"><Bar data={weeklyBarChart} options={CHART_DEFAULTS} /></div>
                 </div>
               </div>
 
-              <div className="bottom-row">
-                <div className="glass-card chart-card">
-                  <div className="chart-header"><div><div className="chart-title">Channel Health</div></div><div className="health-score"><I.Star /><span>82</span></div></div>
-                  <div className="chart-area" style={{ height: 220 }}><Radar data={radarChart} options={{ ...CHART_DEFAULTS, scales: { r: { ticks: { display: false } } } }}/></div>
+              <div className="dashboard-bottom-row">
+                <div className="dash-panel glass-card">
+                  <div className="dash-panel-header"><div><strong>Channel Health</strong><span>Performance quality score</span></div><div className="health-number"><Icon.Star size={13} />82</div></div>
+                  <div className="radar-chart"><Radar data={radarChart} options={{ ...CHART_DEFAULTS, scales: { r: { ticks: { display: false }, grid: { color: 'rgba(255,255,255,0.07)' }, angleLines: { color: 'rgba(255,255,255,0.07)' }, pointLabels: { color: '#71717a', font: { size: 10 } }, suggestedMin: 0, suggestedMax: 100 } } }} /></div>
                 </div>
-                <div className="glass-card predict-card">
-                  <div className="predict-label">Goal Milestone</div>
-                  <div className="predict-goal">Target: {((stats.subscribers + 50000) - ((stats.subscribers + 50000) % 50000)).toLocaleString()}</div>
-                  <div style={{ marginTop: 20 }}>
-                    <ProgressBar value={stats.subscribers} max={(stats.subscribers + 50000) - ((stats.subscribers + 50000) % 50000)} color="#ff0000" label="Progress" sublabel={`${((stats.subscribers/((stats.subscribers + 50000) - ((stats.subscribers + 50000) % 50000)))*100).toFixed(1)}%`} />
-                  </div>
+
+                <div className="dash-panel glass-card milestone-panel">
+                  <span className="panel-eyebrow">GOAL MILESTONE</span>
+                  <h3>{milestone.toLocaleString()} subscribers</h3>
+                  <p>Build toward your next meaningful audience milestone.</p>
+                  <ProgressBar value={stats.subscribers} max={milestone} label="Progress" sublabel={`${((Number(stats.subscribers || 0) / milestone) * 100).toFixed(1)}%`} />
+                  <div className="milestone-foot"><span>Current</span><b>{Number(stats.subscribers || 0).toLocaleString()}</b></div>
                 </div>
+
                 {nlp && (
-                  <div className="glass-card chart-card">
-                    <div className="chart-header"><div><div className="chart-title">Top Keywords</div></div></div>
-                    <div className="kw-cloud">{nlp.topKeywords.slice(0, 8).map(kw => <span key={kw} className="kw-tag">{kw}</span>)}</div>
+                  <div className="dash-panel glass-card">
+                    <div className="dash-panel-header"><div><strong>Top Keywords</strong><span>Audience language</span></div></div>
+                    <div className="keyword-cloud">
+                      {(nlp.topKeywords || []).slice(0, 10).map(word => <span key={word}>{word}</span>)}
+                    </div>
+                    <div className="keyword-note"><Icon.Brain size={14} /> Powered by audience text analysis</div>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* NLP TAB */}
           {tab === 'nlp' && nlp && (
-            <div className="tab-content nlp-layout">
-              <div className="glass-card nlp-main">
-                <div className="chart-header" style={{ marginBottom: 20 }}>
-                  <div><div className="chart-title">DBSCAN Topic Clusters</div><div className="chart-sub">Scikit-learn clustering on latest video ({nlp.total_analyzed} comments)</div></div>
-                </div>
-                {nlp.clusters.length === 0 ? (
-                  <div style={{color: 'var(--text-dim)', padding: 20}}>Insufficient comment data to form clusters.</div>
-                ) : (
-                  <div className="cluster-stream">
-                    {nlp.clusters.map((c, i) => (
-                      <div key={i} className="cluster-block" style={{ animationDelay: `${i * 80}ms` }}>
-                        <div className="cluster-top">
-                          <div className="cluster-id">
-                            <span className="cluster-num">#{String(c.cluster_id + 1).padStart(2,'0')}</span>
-                            <div className="cluster-bar-wrap"><div className="cluster-bar" style={{ width: `${(c.size / nlp.clusters[0].size) * 100}%` }}/></div>
-                          </div>
-                          <span className="cluster-size">{c.size.toLocaleString()} matches</span>
-                        </div>
-                        <div className="cluster-kws">{c.keywords.map(kw => <span key={kw} className="kw-chip">{kw}</span>)}</div>
-                        <blockquote className="cluster-quote">"{c.sample}"</blockquote>
-                      </div>
-                    ))}
+            <div className="nlp-dashboard">
+              <div className="dash-panel glass-card nlp-clusters">
+                <div className="dash-panel-header">
+                  <div>
+                    <strong>DBSCAN Topic Clusters</strong>
+                    <span>Scikit-learn clustering across {nlp.total_analyzed || 0} comments</span>
                   </div>
-                )}
+                  <span className="analysis-pill">{nlp.clusters?.length || 0} clusters</span>
+                </div>
+
+                <div className="cluster-stream">
+                  {(!nlp.clusters || nlp.clusters.length === 0) ? (
+                    <div className="empty-state">Insufficient comment data to form topic clusters.</div>
+                  ) : (
+                    nlp.clusters.map((cluster, index) => (
+                      <div className="cluster-item" key={`${cluster.cluster_id}-${index}`}>
+                        <div className="cluster-topline">
+                          <strong>#{String((cluster.cluster_id || index) + 1).padStart(2, '0')}</strong>
+                          <div className="cluster-progress"><span style={{ width: `${Math.min(100, (cluster.size / Math.max(nlp.clusters[0]?.size || 1, 1)) * 100)}%` }} /></div>
+                          <b>{Number(cluster.size || 0).toLocaleString()} matches</b>
+                        </div>
+                        <div className="cluster-tags">{(cluster.keywords || []).map(word => <span key={word}>{word}</span>)}</div>
+                        <blockquote>“{cluster.sample || 'Audience conversation cluster'}”</blockquote>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-              <div className="glass-card nlp-main">
-                <div className="chart-title" style={{ marginBottom: 20 }}>VADER Sentiment</div>
-                <div style={{ height: 200, position: 'relative' }}>
-                  <Doughnut data={sentimentChart} options={{ ...CHART_DEFAULTS, cutout: '72%' }}/>
-                  <div className="donut-center"><div className="donut-score">{(nlp.sentiment.score * 100).toFixed(0)}</div><div className="donut-label">Index</div></div>
-                </div>
-                <div style={{ marginTop: 30, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {[['Positive', '#10b981', nlp.sentiment.distribution.positive], ['Neutral', '#3b82f6', nlp.sentiment.distribution.neutral], ['Negative', '#ef4444', nlp.sentiment.distribution.negative]].map(([l, c, v]) => (
-                    <div key={l} className="sentiment-row"><span className="sent-dot" style={{ background: c }}/><span className="sent-label">{l}</span><div className="sent-bar-wrap"><div className="sent-bar" style={{ width: `${v}%`, background: c }}/></div><span className="sent-pct">{v}%</span></div>
-                  ))}
-                </div>
+
+              <div className="dash-panel glass-card sentiment-panel">
+                <div className="dash-panel-header"><div><strong>VADER Sentiment</strong><span>Audience reaction distribution</span></div></div>
+                {sentimentChart ? (
+                  <>
+                    <div className="sentiment-chart-wrap">
+                      <Doughnut data={sentimentChart} options={{ ...CHART_DEFAULTS, cutout: '72%' }} />
+                      <div className="sentiment-center">
+                        <strong>{Math.round((nlp.sentiment?.score || 0) * 100)}</strong>
+                        <span>INDEX</span>
+                      </div>
+                    </div>
+                    <div className="sentiment-list">
+                      {[
+                        ['Positive', '#10b981', nlp.sentiment.distribution.positive],
+                        ['Neutral', '#3b82f6', nlp.sentiment.distribution.neutral],
+                        ['Negative', '#ef4444', nlp.sentiment.distribution.negative]
+                      ].map(([label, color, amount]) => (
+                        <div className="sentiment-line" key={label}>
+                          <span><i style={{ background: color }} />{label}</span><div><span style={{ width: `${amount}%`, background: color }} /></div><b>{amount}%</b>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : <div className="empty-state">Sentiment data is unavailable.</div>}
               </div>
             </div>
           )}
 
-          {/* REVENUE TAB */}
           {tab === 'revenue' && stats && (
-            <div className="tab-content revenue-layout">
-              <div className="glass-card revenue-hero">
-                <div className="rev-glow"/>
-                <div className="rev-icon"><I.Dollar /></div>
-                <div className="rev-title">Brand Deal Valuation</div>
-                <div className="rev-sub">Algorithmic pricing based on your historical median viewership</div>
-                <div className="rev-price"><span className="rev-currency">$</span><AnimatedNumber value={stats.sponsorship_value} duration={1500} /></div>
-                <div className="rev-note">Per sponsored integration</div>
-                <div className="rev-tiers">
-                  {[['Story Mention', Math.floor(stats.sponsorship_value * 0.2)], ['Dedicated', stats.sponsorship_value], ['Series Deal', stats.sponsorship_value * 3]].map(([l, v]) => (
-                    <div key={l} className={`rev-tier ${v === stats.sponsorship_value ? 'tier-active' : ''}`}>
-                      <span className="tier-label">{l}</span><span className="tier-price">${v.toLocaleString()}</span>
+            <div className="revenue-dashboard">
+              <div className="dash-panel glass-card revenue-hero-panel">
+                <div className="revenue-glow" />
+                <div className="revenue-icon"><Icon.Dollar size={28} /></div>
+                <div className="panel-eyebrow green">MONETIZATION INTELLIGENCE</div>
+                <h2>Brand Deal Valuation</h2>
+                <p>Algorithmic pricing based on your historical median viewership.</p>
+                <div className="revenue-price"><span>$</span><AnimatedNumber value={stats.sponsorship_value} duration={1500} /></div>
+                <div className="revenue-note">estimated value per sponsored integration</div>
+
+                <div className="revenue-tiers">
+                  {[
+                    ['Story mention', Math.floor(Number(stats.sponsorship_value || 0) * 0.2)],
+                    ['Dedicated', Number(stats.sponsorship_value || 0)],
+                    ['Series deal', Number(stats.sponsorship_value || 0) * 3]
+                  ].map(([label, amount], index) => (
+                    <div className={index === 1 ? 'revenue-tier active' : 'revenue-tier'} key={label}>
+                      <small>{label}</small><strong>${amount.toLocaleString()}</strong>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="glass-card revenue-details" style={{ padding: 28 }}>
-                <div className="chart-title" style={{ marginBottom: 20 }}>Calculation Breakdown</div>
+
+              <div className="dash-panel glass-card revenue-breakdown">
+                <div className="dash-panel-header"><div><strong>Calculation Breakdown</strong><span>How the estimate is formed</span></div></div>
                 {[
-                  ['Avg Views per Video', Math.round(stats.views / Math.max(stats.videos, 1)).toLocaleString(), 'white'],
-                  ['Industry CPM Base', '$20.00', 'white'],
-                  ['Platform Multiplier', '1.0x (Standard)', '#fbbf24'],
-                  ['Estimated Value', `$${stats.sponsorship_value.toLocaleString()}`, '#10b981'],
-                ].map(([k, v, c]) => (
-                  <div key={k} className="calc-line"><span className="calc-key">{k}</span><span className="calc-val" style={{ color: c }}>{v}</span></div>
+                  ['Average views per video', Math.round(Number(stats.views || 0) / Math.max(Number(stats.videos || 1), 1)).toLocaleString()],
+                  ['Industry CPM base', '$20.00'],
+                  ['Platform multiplier', '1.0x Standard'],
+                  ['Estimated value', `$${Number(stats.sponsorship_value || 0).toLocaleString()}`
+                  ]
+                ].map(([label, value], i) => (
+                  <div className="breakdown-row" key={label}><span>{label}</span><strong className={i === 3 ? 'green-text' : ''}>{value}</strong></div>
                 ))}
               </div>
             </div>
           )}
         </div>
       </main>
-      
-      {/* IN-DASHBOARD SETTINGS MODAL */}
-      {isSettingsOpen && workspace === 'youtube' && (
+
+      {isSettingsOpen && (
         <div className="modal-veil" onClick={() => setIsSettingsOpen(false)}>
           <div className="modal-panel glass-card" onClick={e => e.stopPropagation()}>
-            <h2 style={{ color: 'white', marginBottom: 8 }}>Configuration</h2>
-            <p style={{ color: 'var(--text-dim)', marginBottom: 24, fontSize: '0.9rem' }}>Update your connected YouTube Channel ID.</p>
-            <input className="modal-input" placeholder="Channel ID (UC...)" value={tempId} onChange={(e) => setTempId(e.target.value)} />
-            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <button className="modal-btn-cancel" onClick={() => setIsSettingsOpen(false)}>Cancel</button>
-              <button className="modal-btn-ok" onClick={connectChannel}>Update Connection</button>
+            <div className="modal-kicker">CONFIGURATION</div>
+            <h2>Update connected channel.</h2>
+            <p>Change the YouTube channel ID used by this workspace.</p>
+            <input className="modal-input" value={tempId} onChange={e => setTempId(e.target.value)} placeholder="UCxxxxxxxxxxxxxxxxxxxx" />
+            <div className="modal-actions">
+              <button className="modal-cancel" onClick={() => setIsSettingsOpen(false)}>Cancel</button>
+              <button className="modal-confirm" onClick={connectChannel}>Update connection <Icon.ArrowRight size={15} /></button>
             </div>
           </div>
         </div>
       )}
+
+      <Toaster position="bottom-right" />
     </div>
   );
 }
