@@ -1016,39 +1016,106 @@ export default function App() {
     setShowLanding(true);
   };
 
-  const fetchApiData = async (id) => {
-    if (!id || !API_URL) {
-      setIsLoading(false);
-      return;
-    }
+const fetchApiData = async (id) => {
+  if (!id || !API_URL) {
+    toast.error('Backend API URL is missing.');
+    setIsLoading(false);
+    return;
+  }
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+
+  try {
     setIsLoading(true);
 
+    // 1. Channel statistics
+    setLoadingMsg('Fetching channel statistics…');
+
+    const res = await fetch(
+      `${API_URL}/api/youtube/${encodeURIComponent(id)}`,
+      {
+        signal: controller.signal,
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error(`YouTube API returned ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    if (data?.error) {
+      throw new Error(data.error);
+    }
+
+    setStats(data);
+
+    // 2. Historical data
+    setLoadingMsg('Fetching historical trajectory…');
+
     try {
-      setLoadingMsg('Fetching channel statistics…');
-      const res = await fetch(`${API_URL}/api/youtube/${id}`);
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setStats(data);
+      const histRes = await fetch(
+        `${API_URL}/api/history/${encodeURIComponent(id)}`,
+        {
+          signal: controller.signal,
+        }
+      );
 
-      setLoadingMsg('Fetching historical trajectory…');
-      const histRes = await fetch(`${API_URL}/api/history/${id}`);
-      const histData = await histRes.json();
-      setHistory(Array.isArray(histData) ? histData : []);
-
-      setLoadingMsg('Running audience intelligence…');
-      if (data.uploads_id) {
-        const nlpRes = await fetch(`${API_URL}/api/nlp/${data.uploads_id}`);
-        const nlpData = await nlpRes.json();
-        setNlp(nlpData?.error ? null : nlpData);
+      if (histRes.ok) {
+        const histData = await histRes.json();
+        setHistory(Array.isArray(histData) ? histData : []);
+      } else {
+        setHistory([]);
       }
     } catch (error) {
-      toast.error('API sync failed. Check your backend connection.');
-    } finally {
-      setIsLoading(false);
+      console.warn('History fetch failed:', error);
+      setHistory([]);
     }
-  };
 
+    // 3. Audience intelligence
+    if (data?.uploads_id) {
+      setLoadingMsg('Running audience intelligence…');
+
+      try {
+        const nlpRes = await fetch(
+          `${API_URL}/api/nlp/${encodeURIComponent(data.uploads_id)}`,
+          {
+            signal: controller.signal,
+          }
+        );
+
+        if (nlpRes.ok) {
+          const nlpData = await nlpRes.json();
+          setNlp(nlpData?.error ? null : nlpData);
+        } else {
+          setNlp(null);
+        }
+      } catch (error) {
+        console.warn('NLP fetch failed:', error);
+        setNlp(null);
+      }
+    } else {
+      setNlp(null);
+    }
+
+  } catch (error) {
+    console.error('API sync error:', error);
+
+    if (error.name === 'AbortError') {
+      toast.error(
+        'The backend took too long to respond. Please try again.'
+      );
+    } else {
+      toast.error(
+        error?.message || 'API sync failed. Check your backend connection.'
+      );
+    }
+  } finally {
+    clearTimeout(timeout);
+    setIsLoading(false);
+  }
+};
   const selectWorkspace = async (platform) => {
     if (platform !== 'youtube') {
       toast('Meta integrations is Coming Soon.', { icon: '🔒' });
@@ -1075,27 +1142,48 @@ export default function App() {
     }
   };
 
-  const connectChannel = async () => {
-    const id = tempId.trim();
-    if (!id) {
-      toast.error('Enter a valid YouTube channel ID.');
-      return;
-    }
+ const connectChannel = async () => {
+  const id = tempId.trim();
 
-    try {
-      setIsLoading(true);
-      setLoadingMsg('Saving creator source…');
-      await setDoc(doc(db, 'users', user.uid, 'profile', 'youtube'), { accountId: id }, { merge: true });
-      setChannelId(id);
-      setIsSettingsOpen(false);
-      setWorkspace('youtube');
-      await fetchApiData(id);
-    } catch {
-      toast.error('Unable to save your YouTube channel.');
-      setIsLoading(false);
-    }
-  };
+  if (!id) {
+    toast.error('Enter a valid YouTube channel ID.');
+    return;
+  }
 
+  if (!user?.uid) {
+    toast.error('Please log in again.');
+    return;
+  }
+
+  try {
+    setIsLoading(true);
+    setLoadingMsg('Saving creator source…');
+
+    // Save the channel ID to Firebase
+    await setDoc(
+      doc(db, 'users', user.uid, 'profile', 'youtube'),
+      { accountId: id },
+      { merge: true }
+    );
+
+    // Update UI immediately
+    setChannelId(id);
+    setIsSettingsOpen(false);
+    setWorkspace('youtube');
+
+    // Fetch backend data
+    await fetchApiData(id);
+
+  } catch (error) {
+    console.error('Connect channel error:', error);
+
+    toast.error(
+      error?.message || 'Unable to connect your YouTube channel.'
+    );
+
+    setIsLoading(false);
+  }
+};
   const velocityChart = useMemo(() => ({
     labels: history.map(h => new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
     datasets: [{
