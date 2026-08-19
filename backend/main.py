@@ -37,14 +37,34 @@ IST = timezone(timedelta(hours=5, minutes=30))
 
 # --- FIREBASE ADMIN INITIALIZATION ---
 try:
-    # Ensure you have downloaded this JSON file and placed it in the same folder as main.py
-    cred = credentials.Certificate("serviceAccountKey.json")
-    
-    # Check if app is already initialized to prevent errors on hot-reloads
+    import json
+
+    firebase_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+
+    if firebase_json:
+        firebase_credentials = json.loads(firebase_json)
+        cred = credentials.Certificate(firebase_credentials)
+    else:
+        # Local development only.
+        # This file MUST remain in .gitignore.
+        local_key = os.path.join(
+            os.path.dirname(__file__),
+            "serviceAccountKey.json"
+        )
+
+        if not os.path.exists(local_key):
+            raise FileNotFoundError(
+                "Firebase credentials not configured. "
+                "Set FIREBASE_SERVICE_ACCOUNT_JSON."
+            )
+
+        cred = credentials.Certificate(local_key)
+
     if not firebase_admin._apps:
         firebase_admin.initialize_app(cred)
-        
+
     db = firestore.client()
+
 except Exception as e:
     print(f"Error initializing Firebase Admin: {e}")
     db = None
@@ -167,6 +187,13 @@ async def get_history(channel_id: str):
         return [{"subscribers": d.to_dict()["subscribers"], "timestamp": d.to_dict()["timestamp"].isoformat()} for d in docs][::-1]
     except Exception:
         return []
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "ok",
+        "firebase": db is not None
+    }
 
 @app.get("/api/nlp/{uploads_id}")
 async def run_nlp_pipeline(uploads_id: str):
